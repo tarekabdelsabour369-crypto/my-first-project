@@ -1,1 +1,1380 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  LayoutDashboard, ShoppingCart, ShoppingBag, Package, 
+  Users, FileText, ArrowLeftRight, Bell, UserCheck, 
+  Plus, Search, Filter, Printer, Download, TrendingUp, 
+  TrendingDown, DollarSign, AlertTriangle, CheckCircle2, 
+  Trash2, Edit, Eye, X, ChevronDown, RefreshCw, BarChart2
+} from 'lucide-react';
 
+// --- SAMPLE INITIAL DATA ---
+const INITIAL_PRODUCTS = [
+  { id: 'PRD-101', name: 'شاشة سامسونج 27 بوصة', category: 'إلكترونيات', buyPrice: 4500, sellPrice: 5800, stock: 18, minStock: 5, sku: 'SAM-27-LED' },
+  { id: 'PRD-102', name: 'لوحة مفاتيح ميكانيكية', category: 'ملحقات', buyPrice: 650, sellPrice: 950, stock: 4, minStock: 10, sku: 'KBD-MECH-01' },
+  { id: 'PRD-103', name: 'ماوس لاسلكي لوجيتك', category: 'ملحقات', buyPrice: 300, sellPrice: 480, stock: 25, minStock: 8, sku: 'LOG-WL-M' },
+  { id: 'PRD-104', name: 'طابعة لييزر إتش بي', category: 'أجهزة مكتبية', buyPrice: 3200, sellPrice: 4100, stock: 2, minStock: 3, sku: 'HP-LJ-100' },
+  { id: 'PRD-105', name: 'كرسي مكتب مريح', category: 'أثاث', buyPrice: 1800, sellPrice: 2600, stock: 12, minStock: 4, sku: 'OFF-CHR-ERG' },
+];
+
+const INITIAL_CUSTOMERS = [
+  { id: 'CUST-01', name: 'شركة الأمل للتجارة', phone: '01012345678', email: 'alamal@example.com', balance: 12500, type: 'شركة' },
+  { id: 'CUST-02', name: 'مؤسسة النور الإلكترونية', phone: '01198765432', email: 'alnoor@example.com', balance: -3200, type: 'مؤسسة' },
+  { id: 'CUST-03', name: 'أحمد محمود (عميل نقدي)', phone: '01200001111', email: 'ahmed@example.com', balance: 0, type: 'فرد' },
+];
+
+const INITIAL_SUPPLIERS = [
+  { id: 'SUP-01', name: 'شركة التكنولوجيا التكنولوجية', phone: '0223456789', email: 'tech_supplier@example.com', balance: 18000, company: 'التكنولوجيا العالمية' },
+  { id: 'SUP-02', name: 'مستورد الأجهزة الحديثة', phone: '0233445566', email: 'modern_devices@example.com', balance: 0, company: 'الحديثة للاستيراد' },
+];
+
+const INITIAL_SALES = [
+  { 
+    id: 'INV-2026-001', 
+    date: '2026-10-24', 
+    customerName: 'شركة الأمل للتجارة', 
+    items: [{ productId: 'PRD-101', name: 'شاشة سامسونج 27 بوصة', qty: 2, price: 5800 }], 
+    taxRate: 14, 
+    discount: 200, 
+    subtotal: 11600,
+    taxAmount: 1596, 
+    total: 12996, 
+    status: 'مدفوعة',
+    createdBy: 'مسؤول مبيعات'
+  },
+  { 
+    id: 'INV-2026-002', 
+    date: '2026-10-25', 
+    customerName: 'أحمد محمود (عميل نقدي)', 
+    items: [{ productId: 'PRD-103', name: 'ماوس لاسلكي لوجيتك', qty: 1, price: 480 }], 
+    taxRate: 14, 
+    discount: 0, 
+    subtotal: 480,
+    taxAmount: 67.2, 
+    total: 547.2, 
+    status: 'مدفوعة',
+    createdBy: 'مسؤول مبيعات'
+  }
+];
+
+const INITIAL_PURCHASES = [
+  {
+    id: 'PO-2026-001',
+    date: '2026-10-20',
+    supplierName: 'شركة التكنولوجيا التكنولوجية',
+    items: [{ productId: 'PRD-101', name: 'شاشة سامسونج 27 بوصة', qty: 5, cost: 4500 }],
+    totalCost: 22500,
+    status: 'مستلمة',
+    createdBy: 'محاسب'
+  }
+];
+
+const INITIAL_JOURNAL = [
+  { id: 'JRN-1001', date: '2026-10-24', description: 'اثبات مبيعات فاتورة INV-2026-001', debit: 12996, credit: 12996, ref: 'INV-2026-001' },
+  { id: 'JRN-1002', date: '2026-10-20', description: 'إثبات فاتورة مشتريات PO-2026-001', debit: 22500, credit: 22500, ref: 'PO-2026-001' }
+];
+
+export default function App() {
+  // --- STATE MANAGEMENT ---
+  const [currentRole, setCurrentRole] = useState('مدير النظام'); // 'مدير النظام' | 'محاسب' | 'مسؤول مبيعات' | 'أمين مخزن'
+  const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Data States
+  const [products, setProducts] = useState(() => {
+    const saved = localStorage.getItem('erp_products');
+    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+  });
+  
+  const [customers, setCustomers] = useState(() => {
+    const saved = localStorage.getItem('erp_customers');
+    return saved ? JSON.parse(saved) : INITIAL_CUSTOMERS;
+  });
+
+  const [suppliers, setSuppliers] = useState(() => {
+    const saved = localStorage.getItem('erp_suppliers');
+    return saved ? JSON.parse(saved) : INITIAL_SUPPLIERS;
+  });
+
+  const [sales, setSales] = useState(() => {
+    const saved = localStorage.getItem('erp_sales');
+    return saved ? JSON.parse(saved) : INITIAL_SALES;
+  });
+
+  const [purchases, setPurchases] = useState(() => {
+    const saved = localStorage.getItem('erp_purchases');
+    return saved ? JSON.parse(saved) : INITIAL_PURCHASES;
+  });
+
+  const [journal, setJournal] = useState(() => {
+    const saved = localStorage.getItem('erp_journal');
+    return saved ? JSON.parse(saved) : INITIAL_JOURNAL;
+  });
+
+  // UI & Modals State
+  const [isNewSaleOpen, setIsNewSaleOpen] = useState(false);
+  const [isNewPurchaseOpen, setIsNewPurchaseOpen] = useState(false);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+  const [selectedInvoiceForPrint, setSelectedInvoiceForPrint] = useState(null);
+
+  // Sync with LocalStorage
+  useEffect(() => {
+    localStorage.setItem('erp_products', JSON.stringify(products));
+    localStorage.setItem('erp_customers', JSON.stringify(customers));
+    localStorage.setItem('erp_suppliers', JSON.stringify(suppliers));
+    localStorage.setItem('erp_sales', JSON.stringify(sales));
+    localStorage.setItem('erp_purchases', JSON.stringify(purchases));
+    localStorage.setItem('erp_journal', JSON.stringify(journal));
+  }, [products, customers, suppliers, sales, purchases, journal]);
+
+  // --- STATS COMPUTATION ---
+  const totalSalesAmount = useMemo(() => sales.reduce((acc, curr) => acc + (curr.total || 0), 0), [sales]);
+  const totalPurchasesAmount = useMemo(() => purchases.reduce((acc, curr) => acc + (curr.totalCost || 0), 0), [purchases]);
+  const inventoryValue = useMemo(() => products.reduce((acc, curr) => acc + (curr.buyPrice * curr.stock), 0), [products]);
+  const estimatedProfit = useMemo(() => {
+    const totalCostOfGoodsSold = sales.reduce((acc, sale) => {
+      const itemsCost = sale.items.reduce((iAcc, item) => {
+        const prod = products.find(p => p.id === item.productId);
+        return iAcc + ((prod ? prod.buyPrice : item.price * 0.7) * item.qty);
+      }, 0);
+      return acc + itemsCost;
+    }, 0);
+    return totalSalesAmount - totalCostOfGoodsSold;
+  }, [sales, totalSalesAmount, products]);
+
+  const lowStockProducts = useMemo(() => products.filter(p => p.stock <= p.minStock), [products]);
+
+  // --- HANDLERS & LOGIC ---
+
+  // Handle New Sale Invoice Creation
+  const handleCreateSale = (invoiceData) => {
+    const newInvoice = {
+      id: `INV-2026-00${sales.length + 1}`,
+      date: new Date().toISOString().split('T')[0],
+      ...invoiceData,
+      status: 'مدفوعة',
+      createdBy: currentRole
+    };
+
+    // Update Sales list
+    setSales([newInvoice, ...sales]);
+
+    // Deduct stock quantities
+    setProducts(prevProducts => prevProducts.map(product => {
+      const itemInInvoice = invoiceData.items.find(item => item.productId === product.id);
+      if (itemInInvoice) {
+        return { ...product, stock: Math.max(0, product.stock - itemInInvoice.qty) };
+      }
+      return product;
+    }));
+
+    // Add journal entry
+    const newJournal = {
+      id: `JRN-${1000 + journal.length + 1}`,
+      date: newInvoice.date,
+      description: `اثبات مبيعات فاتورة ${newInvoice.id} (${newInvoice.customerName})`,
+      debit: newInvoice.total,
+      credit: newInvoice.total,
+      ref: newInvoice.id
+    };
+    setJournal([newJournal, ...journal]);
+
+    setIsNewSaleOpen(false);
+  };
+
+  // Handle New Purchase Creation
+  const handleCreatePurchase = (purchaseData) => {
+    const newPurchase = {
+      id: `PO-2026-00${purchases.length + 1}`,
+      date: new Date().toISOString().split('T')[0],
+      ...purchaseData,
+      status: 'مستلمة',
+      createdBy: currentRole
+    };
+
+    setPurchases([newPurchase, ...purchases]);
+
+    // Increase stock
+    setProducts(prevProducts => prevProducts.map(product => {
+      const itemInPO = purchaseData.items.find(item => item.productId === product.id);
+      if (itemInPO) {
+        return { ...product, stock: product.stock + Number(itemInPO.qty) };
+      }
+      return product;
+    }));
+
+    // Add journal entry
+    const newJournal = {
+      id: `JRN-${1000 + journal.length + 1}`,
+      date: newPurchase.date,
+      description: `إثبات فاتورة مشتريات ${newPurchase.id} (${newPurchase.supplierName})`,
+      debit: newPurchase.totalCost,
+      credit: newPurchase.totalCost,
+      ref: newPurchase.id
+    };
+    setJournal([newJournal, ...journal]);
+
+    setIsNewPurchaseOpen(false);
+  };
+
+  // Add Product
+  const handleAddProduct = (newProd) => {
+    const item = {
+      ...newProd,
+      id: `PRD-${100 + products.length + 1}`,
+      stock: Number(newProd.stock),
+      buyPrice: Number(newProd.buyPrice),
+      sellPrice: Number(newProd.sellPrice),
+      minStock: Number(newProd.minStock || 5)
+    };
+    setProducts([item, ...products]);
+    setIsProductModalOpen(false);
+  };
+
+  // Role permissions check
+  const canAccess = (tab) => {
+    if (currentRole === 'مدير النظام') return true;
+    if (currentRole === 'محاسب') return ['dashboard', 'sales', 'purchases', 'inventory', 'customers', 'suppliers', 'reports'].includes(tab);
+    if (currentRole === 'مسؤول مبيعات') return ['dashboard', 'sales', 'customers', 'inventory'].includes(tab);
+    if (currentRole === 'أمين مخزن') return ['dashboard', 'inventory', 'purchases'].includes(tab);
+    return true;
+  };
+
+  return (
+    <div dir="rtl" className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col md:flex-row">
+      
+      {/* SIDEBAR NAVIGATION */}
+      <aside className="w-full md:w-64 bg-slate-900 text-slate-100 flex-shrink-0 flex flex-col justify-between border-l border-slate-800">
+        <div>
+          {/* Logo & App Name */}
+          <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-500/30">
+                <BarChart2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h1 className="font-bold text-lg text-white">المحاسب الذكي</h1>
+                <p className="text-xs text-slate-400">نظام إدارة مالي ومخزني</p>
+              </div>
+            </div>
+          </div>
+
+          {/* User Role Switcher */}
+          <div className="p-4 bg-slate-800/60 m-3 rounded-xl border border-slate-700/50">
+            <div className="flex items-center gap-2 mb-2 text-xs text-indigo-400 font-medium">
+              <UserCheck className="w-4 h-4" />
+              <span>دور المستخدم الحالي:</span>
+            </div>
+            <select 
+              value={currentRole}
+              onChange={(e) => setCurrentRole(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 text-sm text-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+            >
+              <option value="مدير النظام">مدير النظام (كامل الصلاحيات)</option>
+              <option value="محاسب">محاسب (تقارير وفواتير)</option>
+              <option value="مسؤول مبيعات">مسؤول مبيعات (فواتير وعملاء)</option>
+              <option value="أمين مخزن">أمين مخزن (إدارة المخزون)</option>
+            </select>
+          </div>
+
+          {/* Nav Items */}
+          <nav className="px-3 py-2 space-y-1">
+            {[
+              { id: 'dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
+              { id: 'sales', label: 'إدارة المبيعات', icon: ShoppingCart },
+              { id: 'purchases', label: 'إدارة المشتريات', icon: ShoppingBag },
+              { id: 'inventory', label: 'المخازن والمخزون', icon: Package },
+              { id: 'customers', label: 'العملاء', icon: Users },
+              { id: 'suppliers', label: 'الموردون', icon: Users },
+              { id: 'reports', label: 'التقارير والميزانية', icon: FileText },
+            ].map(item => {
+              const Icon = item.icon;
+              const hasAccess = canAccess(item.id);
+              if (!hasAccess) return null;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
+                    activeTab === item.id 
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
+                      : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-5 h-5" />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.id === 'inventory' && lowStockProducts.length > 0 && (
+                    <span className="bg-amber-500/20 text-amber-400 text-xs px-2 py-0.5 rounded-full font-bold">
+                      {lowStockProducts.length}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Footer info */}
+        <div className="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
+          نظام المحاسبة المتكامل v2.5
+        </div>
+      </aside>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 flex flex-col overflow-y-auto">
+        
+        {/* TOP NAVBAR */}
+        <header className="bg-white border-b border-slate-200 sticky top-0 z-10 px-6 py-4 flex items-center justify-between shadow-sm">
+          <div>
+            <h2 className="text-xl font-bold text-slate-800">
+              {activeTab === 'dashboard' && 'لوحة التحكم والملخص العام'}
+              {activeTab === 'sales' && 'إدارة فواتير المبيعات'}
+              {activeTab === 'purchases' && 'إدارة المشتريات والموردين'}
+              {activeTab === 'inventory' && 'إدارة المخزون والمخازن'}
+              {activeTab === 'customers' && 'سجل العملاء'}
+              {activeTab === 'suppliers' && 'سجل الموردين'}
+              {activeTab === 'reports' && 'التقارير المالية وقائمة الدخل'}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">مرحباً بك، دورك الحالي: <span className="font-semibold text-indigo-600">{currentRole}</span></p>
+          </div>
+
+          {/* Quick Actions & Notifications */}
+          <div className="flex items-center gap-3">
+            {lowStockProducts.length > 0 && (
+              <div className="relative group">
+                <button 
+                  onClick={() => setActiveTab('inventory')}
+                  className="p-2.5 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-100 transition relative"
+                  title="تنبيهات المخزون المنخفض"
+                >
+                  <Bell className="w-5 h-5" />
+                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold border-2 border-white">
+                    {lowStockProducts.length}
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {(currentRole === 'مدير النظام' || currentRole === 'مسؤول مبيعات') && (
+              <button 
+                onClick={() => setIsNewSaleOpen(true)}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium text-sm transition shadow-sm shadow-indigo-500/20"
+              >
+                <Plus className="w-4 h-4" />
+                <span>فاتورة مبيعات جديدة</span>
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* PAGE CONTENT SWITCHER */}
+        <div className="p-6 space-y-6 flex-1">
+          
+          {/* 1. DASHBOARD VIEW */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6">
+              {/* Metrics Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <MetricCard 
+                  title="إجمالي المبيعات" 
+                  value={`${totalSalesAmount.toLocaleString()} ج.م`} 
+                  subText="محدث من الفواتير" 
+                  icon={TrendingUp} 
+                  color="emerald" 
+                />
+                <MetricCard 
+                  title="إجمالي المشتريات" 
+                  value={`${totalPurchasesAmount.toLocaleString()} ج.م`} 
+                  subText="مشتريات البضائع" 
+                  icon={TrendingDown} 
+                  color="blue" 
+                />
+                <MetricCard 
+                  title="قيمة المخزون القائم" 
+                  value={`${inventoryValue.toLocaleString()} ج.م`} 
+                  subText={`${products.length} منتجات في المخزن`} 
+                  icon={Package} 
+                  color="indigo" 
+                />
+                <MetricCard 
+                  title="صافي الأرباح التقديرية" 
+                  value={`${estimatedProfit.toLocaleString()} ج.م`} 
+                  subText="بعد خصم تكلفة البضاعة" 
+                  icon={DollarSign} 
+                  color="amber" 
+                />
+              </div>
+
+              {/* Low stock Warning Banner */}
+              {lowStockProducts.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-500 text-white rounded-xl">
+                      <AlertTriangle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-amber-900 text-sm">تنبيه مخزون منخفض!</h4>
+                      <p className="text-xs text-amber-700 mt-0.5">يوجد {lowStockProducts.length} منتجات وصلت للحد الأدنى للمخزون وتحتاج لإعادة طلب.</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab('inventory')} 
+                    className="text-xs font-bold text-amber-800 hover:text-amber-900 bg-amber-200/60 px-3 py-2 rounded-lg transition"
+                  >
+                    عرض المنتجات المنخفضة
+                  </button>
+                </div>
+              )}
+
+              {/* Layout splits */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Recent Sales Activity */}
+                <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-slate-800 text-base">آخر عمليات المبيعات</h3>
+                    <button onClick={() => setActiveTab('sales')} className="text-xs text-indigo-600 font-semibold hover:underline">عرض الكل</button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-right">
+                      <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
+                        <tr>
+                          <th className="py-3 px-4">رقم الفاتورة</th>
+                          <th className="py-3 px-4">العميل</th>
+                          <th className="py-3 px-4">التاريخ</th>
+                          <th className="py-3 px-4">الإجمالي</th>
+                          <th className="py-3 px-4">الحالة</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {sales.slice(0, 5).map(sale => (
+                          <tr key={sale.id} className="hover:bg-slate-50/80 transition">
+                            <td className="py-3 px-4 font-semibold text-slate-700">{sale.id}</td>
+                            <td className="py-3 px-4 text-slate-600">{sale.customerName}</td>
+                            <td className="py-3 px-4 text-slate-500 text-xs">{sale.date}</td>
+                            <td className="py-3 px-4 font-bold text-emerald-600">{sale.total.toLocaleString()} ج.م</td>
+                            <td className="py-3 px-4">
+                              <span className="bg-emerald-100 text-emerald-700 text-xs px-2.5 py-1 rounded-full font-medium">
+                                {sale.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Stock distribution summary */}
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-base mb-4">ملخص المخزون السريع</h3>
+                    <div className="space-y-4">
+                      {products.slice(0, 4).map(prod => (
+                        <div key={prod.id} className="space-y-1.5">
+                          <div className="flex justify-between text-xs font-medium">
+                            <span className="text-slate-700">{prod.name}</span>
+                            <span className={prod.stock <= prod.minStock ? 'text-amber-600 font-bold' : 'text-slate-500'}>
+                              {prod.stock} قطعة
+                            </span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full rounded-full ${prod.stock <= prod.minStock ? 'bg-amber-500' : 'bg-indigo-600'}`}
+                              style={{ width: `${Math.min(100, (prod.stock / 30) * 100)}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab('inventory')} 
+                    className="w-full mt-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
+                  >
+                    الانتقال لجداول المخازن
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 2. SALES MODULE */}
+          {activeTab === 'sales' && (
+            <div className="space-y-4">
+              {/* Actions Header */}
+              <div className="flex flex-col sm:flex-row justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute right-3 top-3.5 text-slate-400" />
+                  <input 
+                    type="text" 
+                    placeholder="البحث برقم الفاتورة أو اسم العميل..." 
+                    className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <button 
+                  onClick={() => setIsNewSaleOpen(true)}
+                  className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>إصدار فاتورة جديدة</span>
+                </button>
+              </div>
+
+              {/* Sales History Table */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-sm text-right">
+                  <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                    <tr>
+                      <th className="py-4 px-6">رقم الفاتورة</th>
+                      <th className="py-4 px-6">العميل</th>
+                      <th className="py-4 px-6">التاريخ</th>
+                      <th className="py-4 px-6">المجموع قبل الضريبة</th>
+                      <th className="py-4 px-6">الإجمالي النهائي</th>
+                      <th className="py-4 px-6">الحالة</th>
+                      <th className="py-4 px-6 text-center">الإجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {sales.map(sale => (
+                      <tr key={sale.id} className="hover:bg-slate-50/80 transition">
+                        <td className="py-4 px-6 font-bold text-slate-800">{sale.id}</td>
+                        <td className="py-4 px-6 text-slate-700">{sale.customerName}</td>
+                        <td className="py-4 px-6 text-slate-500 text-xs">{sale.date}</td>
+                        <td className="py-4 px-6 text-slate-600">{(sale.subtotal || 0).toLocaleString()} ج.م</td>
+                        <td className="py-4 px-6 font-bold text-emerald-600">{sale.total.toLocaleString()} ج.م</td>
+                        <td className="py-4 px-6">
+                          <span className="bg-emerald-100 text-emerald-700 text-xs px-3 py-1 rounded-full font-medium">
+                            {sale.status}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          <button 
+                            onClick={() => setSelectedInvoiceForPrint(sale)}
+                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition" 
+                            title="معاينة وطباعة"
+                          >
+                            <Printer className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 3. PURCHASES MODULE */}
+          {activeTab === 'purchases' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-slate-800">سجل فواتير المشتريات والموردين</h3>
+                <button 
+                  onClick={() => setIsNewPurchaseOpen(true)}
+                  className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-emerald-700 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>تسجيل فاتورة شراء جديدة</span>
+                </button>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-sm text-right">
+                  <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                    <tr>
+                      <th className="py-4 px-6">رقم أمر الشراء</th>
+                      <th className="py-4 px-6">المورد</th>
+                      <th className="py-4 px-6">التاريخ</th>
+                      <th className="py-4 px-6">التكلفة الإجمالية</th>
+                      <th className="py-4 px-6">حالة الاستلام</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {purchases.map(po => (
+                      <tr key={po.id} className="hover:bg-slate-50/80 transition">
+                        <td className="py-4 px-6 font-bold text-slate-800">{po.id}</td>
+                        <td className="py-4 px-6 text-slate-700">{po.supplierName}</td>
+                        <td className="py-4 px-6 text-slate-500 text-xs">{po.date}</td>
+                        <td className="py-4 px-6 font-bold text-slate-800">{po.totalCost.toLocaleString()} ج.م</td>
+                        <td className="py-4 px-6">
+                          <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full font-medium">
+                            {po.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 4. INVENTORY / WAREHOUSE MODULE */}
+          {activeTab === 'inventory' && (
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute right-3 top-3.5 text-slate-400" />
+                  <input 
+                    type="text" 
+                    placeholder="ابحث عن منتج بالاسم أو الـ SKU..." 
+                    className="w-full pr-10 pl-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <button 
+                  onClick={() => setIsProductModalOpen(true)}
+                  className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>إضافة منتج جديد</span>
+                </button>
+              </div>
+
+              {/* Products Table */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-sm text-right">
+                  <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                    <tr>
+                      <th className="py-4 px-6">كود المنتج (SKU)</th>
+                      <th className="py-4 px-6">اسم المنتج</th>
+                      <th className="py-4 px-6">التصنيف</th>
+                      <th className="py-4 px-6">سعر الشراء</th>
+                      <th className="py-4 px-6">سعر البيع</th>
+                      <th className="py-4 px-6">الكمية بالمخزن</th>
+                      <th className="py-4 px-6">حالة المخزون</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {products.map(product => {
+                      const isLow = product.stock <= product.minStock;
+                      return (
+                        <tr key={product.id} className="hover:bg-slate-50/80 transition">
+                          <td className="py-4 px-6 font-mono text-xs text-slate-500">{product.sku}</td>
+                          <td className="py-4 px-6 font-semibold text-slate-800">{product.name}</td>
+                          <td className="py-4 px-6 text-slate-600">{product.category}</td>
+                          <td className="py-4 px-6 text-slate-600">{product.buyPrice.toLocaleString()} ج.م</td>
+                          <td className="py-4 px-6 font-bold text-slate-800">{product.sellPrice.toLocaleString()} ج.م</td>
+                          <td className="py-4 px-6 font-bold">{product.stock}</td>
+                          <td className="py-4 px-6">
+                            {isLow ? (
+                              <span className="bg-amber-100 text-amber-700 text-xs px-3 py-1 rounded-full font-medium inline-flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" />
+                                منخفض (حد أدنى {product.minStock})
+                              </span>
+                            ) : (
+                              <span className="bg-emerald-100 text-emerald-700 text-xs px-3 py-1 rounded-full font-medium">
+                                متوفر
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 5. CUSTOMERS MODULE */}
+          {activeTab === 'customers' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-slate-800">قائمة العملاء والحسابات</h3>
+                <button 
+                  onClick={() => setIsCustomerModalOpen(true)}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>إضافة عميل جديد</span>
+                </button>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-sm text-right">
+                  <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                    <tr>
+                      <th className="py-4 px-6">اسم العميل</th>
+                      <th className="py-4 px-6">النوع</th>
+                      <th className="py-4 px-6">رقم الهاتف</th>
+                      <th className="py-4 px-6">الرصيد الحالي</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {customers.map(c => (
+                      <tr key={c.id} className="hover:bg-slate-50/80 transition">
+                        <td className="py-4 px-6 font-bold text-slate-800">{c.name}</td>
+                        <td className="py-4 px-6 text-slate-600">{c.type}</td>
+                        <td className="py-4 px-6 text-slate-600">{c.phone}</td>
+                        <td className={`py-4 px-6 font-bold ${c.balance > 0 ? 'text-amber-600' : 'text-slate-700'}`}>
+                          {c.balance > 0 ? `آجل (عليه ${c.balance.toLocaleString()} ج.م)` : 'مستوفي الدفع'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 6. SUPPLIERS MODULE */}
+          {activeTab === 'suppliers' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-slate-800">قائمة الموردين</h3>
+                <button 
+                  onClick={() => setIsSupplierModalOpen(true)}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>إضافة مورد جديد</span>
+                </button>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-sm text-right">
+                  <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                    <tr>
+                      <th className="py-4 px-6">اسم المورد</th>
+                      <th className="py-4 px-6">الشركة / المؤسسة</th>
+                      <th className="py-4 px-6">رقم الهاتف</th>
+                      <th className="py-4 px-6">مستحقات المورد</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {suppliers.map(s => (
+                      <tr key={s.id} className="hover:bg-slate-50/80 transition">
+                        <td className="py-4 px-6 font-bold text-slate-800">{s.name}</td>
+                        <td className="py-4 px-6 text-slate-600">{s.company}</td>
+                        <td className="py-4 px-6 text-slate-600">{s.phone}</td>
+                        <td className="py-4 px-6 font-bold text-slate-700">{s.balance.toLocaleString()} ج.م</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 7. REPORTS & JOURNAL ENTRIES */}
+          {activeTab === 'reports' && (
+            <div className="space-y-6">
+              {/* Financial Income Statement Summary Card */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-slate-800 text-lg border-b pb-3 border-slate-100">ملخص قائمة الدخل والأرباح التقديرية</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <span className="text-xs text-slate-500">إجمالي إيرادات المبيعات</span>
+                    <p className="text-xl font-bold text-emerald-600 mt-1">{totalSalesAmount.toLocaleString()} ج.م</p>
+                  </div>
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <span className="text-xs text-slate-500">إجمالي مشتريات البضاعة</span>
+                    <p className="text-xl font-bold text-slate-700 mt-1">{totalPurchasesAmount.toLocaleString()} ج.م</p>
+                  </div>
+                  <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                    <span className="text-xs text-indigo-600 font-medium">الأرباح التشغيلية</span>
+                    <p className="text-xl font-bold text-indigo-700 mt-1">{estimatedProfit.toLocaleString()} ج.م</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Automatic Journal Entries */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <h3 className="font-bold text-slate-800 text-base mb-4">دفتر قيود اليومية التلقائية</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-right">
+                    <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                      <tr>
+                        <th className="py-3 px-4">رقم القيد</th>
+                        <th className="py-3 px-4">التاريخ</th>
+                        <th className="py-3 px-4">البيان / الشرح</th>
+                        <th className="py-3 px-4">مدين (ج.م)</th>
+                        <th className="py-3 px-4">دائن (ج.م)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {journal.map(j => (
+                        <tr key={j.id} className="hover:bg-slate-50/80 transition">
+                          <td className="py-3 px-4 font-mono text-xs text-slate-500">{j.id}</td>
+                          <td className="py-3 px-4 text-slate-500 text-xs">{j.date}</td>
+                          <td className="py-3 px-4 font-medium text-slate-700">{j.description}</td>
+                          <td className="py-3 px-4 font-bold text-emerald-600">{j.debit.toLocaleString()}</td>
+                          <td className="py-3 px-4 font-bold text-indigo-600">{j.credit.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </main>
+
+      {/* --- MODALS --- */}
+
+      {/* NEW SALE MODAL */}
+      {isNewSaleOpen && (
+        <ModalSaleForm 
+          onClose={() => setIsNewSaleOpen(false)} 
+          products={products} 
+          customers={customers} 
+          onSubmit={handleCreateSale} 
+        />
+      )}
+
+      {/* NEW PURCHASE MODAL */}
+      {isNewPurchaseOpen && (
+        <ModalPurchaseForm 
+          onClose={() => setIsNewPurchaseOpen(false)} 
+          products={products} 
+          suppliers={suppliers} 
+          onSubmit={handleCreatePurchase} 
+        />
+      )}
+
+      {/* ADD PRODUCT MODAL */}
+      {isProductModalOpen && (
+        <ModalAddProduct 
+          onClose={() => setIsProductModalOpen(false)} 
+          onSubmit={handleAddProduct} 
+        />
+      )}
+
+      {/* ADD CUSTOMER MODAL */}
+      {isCustomerModalOpen && (
+        <ModalAddCustomer 
+          onClose={() => setIsCustomerModalOpen(false)}
+          onSubmit={(cust) => {
+            setCustomers([{ ...cust, id: `CUST-0${customers.length + 1}`, balance: 0 }, ...customers]);
+            setIsCustomerModalOpen(false);
+          }}
+        />
+      )}
+
+      {/* ADD SUPPLIER MODAL */}
+      {isSupplierModalOpen && (
+        <ModalAddSupplier 
+          onClose={() => setIsSupplierModalOpen(false)}
+          onSubmit={(supp) => {
+            setSuppliers([{ ...supp, id: `SUP-0${suppliers.length + 1}`, balance: 0 }, ...suppliers]);
+            setIsSupplierModalOpen(false);
+          }}
+        />
+      )}
+
+      {/* PRINT INVOICE PREVIEW MODAL */}
+      {selectedInvoiceForPrint && (
+        <ModalInvoicePrint 
+          invoice={selectedInvoiceForPrint} 
+          onClose={() => setSelectedInvoiceForPrint(null)} 
+        />
+      )}
+
+    </div>
+  );
+}
+
+// --- SUB-COMPONENTS & MODALS ---
+
+function MetricCard({ title, value, subText, icon: Icon, color }) {
+  const colorMap = {
+    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    blue: 'bg-blue-50 text-blue-600 border-blue-100',
+    indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
+    amber: 'bg-amber-50 text-amber-600 border-amber-100',
+  };
+
+  return (
+    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-start justify-between">
+      <div>
+        <p className="text-xs font-semibold text-slate-500 mb-1">{title}</p>
+        <h3 className="text-xl font-bold text-slate-800">{value}</h3>
+        <p className="text-[11px] text-slate-400 mt-1">{subText}</p>
+      </div>
+      <div className={`p-3 rounded-xl border ${colorMap[color] || colorMap.indigo}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+    </div>
+  );
+}
+
+// Sale Invoice Form Modal
+function ModalSaleForm({ onClose, products, customers, onSubmit }) {
+  const [customerName, setCustomerName] = useState(customers[0]?.name || '');
+  const [items, setItems] = useState([{ productId: products[0]?.id || '', qty: 1, price: products[0]?.sellPrice || 0 }]);
+  const [taxRate, setTaxRate] = useState(14);
+  const [discount, setDiscount] = useState(0);
+
+  const handleProductChange = (index, prodId) => {
+    const prod = products.find(p => p.id === prodId);
+    const newItems = [...items];
+    newItems[index] = {
+      productId: prodId,
+      qty: 1,
+      price: prod ? prod.sellPrice : 0
+    };
+    setItems(newItems);
+  };
+
+  const handleQtyChange = (index, qty) => {
+    const newItems = [...items];
+    newItems[index].qty = Math.max(1, Number(qty));
+    setItems(newItems);
+  };
+
+  const addItemRow = () => {
+    if (products.length === 0) return;
+    setItems([...items, { productId: products[0].id, qty: 1, price: products[0].sellPrice }]);
+  };
+
+  const removeItemRow = (index) => {
+    if (items.length === 1) return;
+    setItems(items.filter((_, i) => i !== index));
+  };
+
+  const subtotal = items.reduce((acc, curr) => acc + (curr.qty * curr.price), 0);
+  const taxAmount = (subtotal - discount) * (taxRate / 100);
+  const total = Math.max(0, subtotal - discount + taxAmount);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formattedItems = items.map(item => {
+      const p = products.find(prod => prod.id === item.productId);
+      return { ...item, name: p ? p.name : 'منتج' };
+    });
+    onSubmit({ customerName, items: formattedItems, taxRate, discount, subtotal, taxAmount, total });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+          <h3 className="font-bold text-slate-800 text-lg">إنشاء فاتورة مبيعات جديدة</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1 text-right">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">اختر العميل</label>
+            <select 
+              value={customerName} 
+              onChange={e => setCustomerName(e.target.value)}
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {customers.map(c => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-3">
+            <label className="block text-xs font-bold text-slate-700">عناصر الفاتورة</label>
+            {items.map((item, idx) => (
+              <div key={idx} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                <select 
+                  value={item.productId}
+                  onChange={e => handleProductChange(idx, e.target.value)}
+                  className="flex-1 p-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
+                >
+                  {products.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} (المتاح: {p.stock})</option>
+                  ))}
+                </select>
+
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={item.qty}
+                  onChange={e => handleQtyChange(idx, e.target.value)}
+                  className="w-20 p-2 bg-white border border-slate-200 rounded-lg text-sm text-center outline-none"
+                  placeholder="الكمية"
+                />
+
+                <span className="text-xs font-bold text-slate-600 w-24 text-left">
+                  {(item.qty * item.price).toLocaleString()} ج.م
+                </span>
+
+                <button 
+                  type="button" 
+                  onClick={() => removeItemRow(idx)}
+                  className="text-rose-500 hover:text-rose-700 p-1"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+
+            <button 
+              type="button" 
+              onClick={addItemRow}
+              className="text-xs text-indigo-600 font-bold hover:underline flex items-center gap-1 mt-2"
+            >
+              <Plus className="w-3.5 h-3.5" /> إضافة منتج آخر
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">الخصم (ج.م)</label>
+              <input 
+                type="number" 
+                value={discount} 
+                onChange={e => setDiscount(Number(e.target.value))}
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">نسبة القيمة المضافة (%)</label>
+              <input 
+                type="number" 
+                value={taxRate} 
+                onChange={e => setTaxRate(Number(e.target.value))}
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Calculations Summary */}
+          <div className="bg-slate-900 text-white p-4 rounded-xl space-y-2 mt-4">
+            <div className="flex justify-between text-xs text-slate-300">
+              <span>المجموع قبل الضريبة والخصم:</span>
+              <span>{subtotal.toLocaleString()} ج.م</span>
+            </div>
+            <div className="flex justify-between text-xs text-slate-300">
+              <span>ضريبة القيمة المضافة ({taxRate}%):</span>
+              <span>{taxAmount.toLocaleString()} ج.م</span>
+            </div>
+            <div className="flex justify-between text-base font-bold text-emerald-400 border-t border-slate-800 pt-2">
+              <span>الإجمالي النهائي:</span>
+              <span>{total.toLocaleString()} ج.م</span>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 text-sm hover:bg-slate-100 rounded-xl">إلغاء</button>
+            <button type="submit" className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-md">حفظ وإصدار الفاتورة</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Purchase Form Modal
+function ModalPurchaseForm({ onClose, products, suppliers, onSubmit }) {
+  const [supplierName, setSupplierName] = useState(suppliers[0]?.name || '');
+  const [items, setItems] = useState([{ productId: products[0]?.id || '', qty: 1, cost: products[0]?.buyPrice || 0 }]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const totalCost = items.reduce((acc, curr) => acc + (curr.qty * curr.cost), 0);
+    const formattedItems = items.map(item => {
+      const p = products.find(prod => prod.id === item.productId);
+      return { ...item, name: p ? p.name : 'منتج' };
+    });
+    onSubmit({ supplierName, items: formattedItems, totalCost });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-xl p-6 space-y-4">
+        <div className="flex justify-between items-center border-b pb-3 border-slate-100">
+          <h3 className="font-bold text-slate-800 text-lg">تسجيل فاتورة شراء جديدة</h3>
+          <button onClick={onClose}><X className="w-5 h-5 text-slate-400" /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4 text-right">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">اختر المورد</label>
+            <select 
+              value={supplierName} 
+              onChange={e => setSupplierName(e.target.value)}
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none"
+            >
+              {suppliers.map(s => <option key={s.id} value={s.name}>{s.name} ({s.company})</option>)}
+            </select>
+          </div>
+
+          {items.map((item, idx) => (
+            <div key={idx} className="flex gap-2 items-center bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+              <select 
+                value={item.productId}
+                onChange={e => {
+                  const p = products.find(prod => prod.id === e.target.value);
+                  const newItems = [...items];
+                  newItems[idx] = { productId: e.target.value, qty: 1, cost: p ? p.buyPrice : 0 };
+                  setItems(newItems);
+                }}
+                className="flex-1 p-2 bg-white border border-slate-200 rounded-lg text-sm"
+              >
+                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <input 
+                type="number" 
+                min="1" 
+                value={item.qty} 
+                onChange={e => {
+                  const newItems = [...items];
+                  newItems[idx].qty = Number(e.target.value);
+                  setItems(newItems);
+                }} 
+                className="w-20 p-2 bg-white border border-slate-200 rounded-lg text-sm text-center"
+                placeholder="الكمية" 
+              />
+            </div>
+          ))}
+
+          <div className="flex justify-end gap-3 pt-3">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 text-sm">إلغاء</button>
+            <button type="submit" className="px-5 py-2 bg-emerald-600 text-white font-bold rounded-xl text-sm">إصدار التوريد للمخزن</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Add Product Modal
+function ModalAddProduct({ onClose, onSubmit }) {
+  const [formData, setFormData] = useState({ name: '', sku: '', category: 'إلكترونيات', buyPrice: '', sellPrice: '', stock: '', minStock: 5 });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.name || !formData.buyPrice || !formData.sellPrice) return;
+    onSubmit(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md p-6 space-y-4">
+        <div className="flex justify-between items-center border-b pb-3 border-slate-100">
+          <h3 className="font-bold text-slate-800 text-lg">إضافة منتج جديد للمخزن</h3>
+          <button onClick={onClose}><X className="w-5 h-5 text-slate-400" /></button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3 text-right">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">اسم المنتج</label>
+            <input 
+              type="text" 
+              required
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+              className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" 
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">كود SKU</label>
+              <input 
+                type="text" 
+                value={formData.sku}
+                onChange={e => setFormData({ ...formData, sku: e.target.value })}
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" 
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">التصنيف</label>
+              <input 
+                type="text" 
+                value={formData.category}
+                onChange={e => setFormData({ ...formData, category: e.target.value })}
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" 
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">سعر الشراء (التكلفة)</label>
+              <input 
+                type="number" 
+                required
+                value={formData.buyPrice}
+                onChange={e => setFormData({ ...formData, buyPrice: e.target.value })}
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" 
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">سعر البيع للعميل</label>
+              <input 
+                type="number" 
+                required
+                value={formData.sellPrice}
+                onChange={e => setFormData({ ...formData, sellPrice: e.target.value })}
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" 
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">الكمية الأولية</label>
+              <input 
+                type="number" 
+                required
+                value={formData.stock}
+                onChange={e => setFormData({ ...formData, stock: e.target.value })}
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" 
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">الحد الأدنى للتنبيه</label>
+              <input 
+                type="number" 
+                value={formData.minStock}
+                onChange={e => setFormData({ ...formData, minStock: e.target.value })}
+                className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" 
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-slate-600 text-sm">إلغاء</button>
+            <button type="submit" className="px-5 py-2 bg-indigo-600 text-white font-bold rounded-xl text-sm">حفظ المنتج</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Add Customer Modal
+function ModalAddCustomer({ onClose, onSubmit }) {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [type, setType] = useState('شركة');
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-sm p-6 space-y-4 text-right">
+        <h3 className="font-bold text-slate-800 text-lg border-b pb-2">إضافة عميل جديد</h3>
+        <input type="text" placeholder="اسم العميل" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 bg-slate-50 border rounded-xl text-sm" />
+        <input type="text" placeholder="رقم الهاتف" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-2 bg-slate-50 border rounded-xl text-sm" />
+        <select value={type} onChange={e => setType(e.target.value)} className="w-full p-2 bg-slate-50 border rounded-xl text-sm">
+          <option value="شركة">شركة</option>
+          <option value="مؤسسة">مؤسسة</option>
+          <option value="فرد">فرد</option>
+        </select>
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-3 py-1.5 text-sm">إلغاء</button>
+          <button onClick={() => onSubmit({ name, phone, type })} className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-sm font-bold">حفظ</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Add Supplier Modal
+function ModalAddSupplier({ onClose, onSubmit }) {
+  const [name, setName] = useState('');
+  const [company, setCompany] = useState('');
+  const [phone, setPhone] = useState('');
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-sm p-6 space-y-4 text-right">
+        <h3 className="font-bold text-slate-800 text-lg border-b pb-2">إضافة مورد جديد</h3>
+        <input type="text" placeholder="اسم المورد" value={name} onChange={e => setName(e.target.value)} className="w-full p-2 bg-slate-50 border rounded-xl text-sm" />
+        <input type="text" placeholder="الشركة" value={company} onChange={e => setCompany(e.target.value)} className="w-full p-2 bg-slate-50 border rounded-xl text-sm" />
+        <input type="text" placeholder="رقم الهاتف" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-2 bg-slate-50 border rounded-xl text-sm" />
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-3 py-1.5 text-sm">إلغاء</button>
+          <button onClick={() => onSubmit({ name, company, phone })} className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-sm font-bold">حفظ</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Print Invoice Simulation Modal
+function ModalInvoicePrint({ invoice, onClose }) {
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-xl p-8 space-y-6 text-right">
+        {/* Invoice Header */}
+        <div className="flex justify-between items-start border-b pb-4 border-slate-200">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">فاتورة مبيعات</h2>
+            <p className="text-sm font-semibold text-indigo-600 mt-1">{invoice.id}</p>
+            <p className="text-xs text-slate-400 mt-0.5">التاريخ: {invoice.date}</p>
+          </div>
+          <div className="text-left">
+            <h3 className="font-bold text-slate-800 text-base">شركة المحاسب الذكي</h3>
+            <p className="text-xs text-slate-500">القاهرة - مصر</p>
+            <p className="text-xs text-slate-500">س.ت: 123456789</p>
+          </div>
+        </div>
+
+        {/* Customer Info */}
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm">
+          <span className="text-xs text-slate-400 font-medium">العميل:</span>
+          <p className="font-bold text-slate-800 text-base">{invoice.customerName}</p>
+        </div>
+
+        {/* Items Table */}
+        <table className="w-full text-sm text-right">
+          <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+            <tr>
+              <th className="py-2 px-3">المنتج</th>
+              <th className="py-2 px-3 text-center">الكمية</th>
+              <th className="py-2 px-3">السعر</th>
+              <th className="py-2 px-3">الإجمالي</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {invoice.items.map((item, idx) => (
+              <tr key={idx}>
+                <td className="py-2.5 px-3 font-medium text-slate-800">{item.name}</td>
+                <td className="py-2.5 px-3 text-center">{item.qty}</td>
+                <td className="py-2.5 px-3">{item.price.toLocaleString()} ج.م</td>
+                <td className="py-2.5 px-3 font-bold text-slate-800">{(item.qty * item.price).toLocaleString()} ج.م</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Totals */}
+        <div className="border-t border-slate-200 pt-4 space-y-1.5 text-xs text-slate-600">
+          <div className="flex justify-between">
+            <span>المجموع الفرعي:</span>
+            <span>{(invoice.subtotal || 0).toLocaleString()} ج.م</span>
+          </div>
+          {invoice.discount > 0 && (
+            <div className="flex justify-between text-rose-600">
+              <span>الخصم:</span>
+              <span>- {invoice.discount.toLocaleString()} ج.م</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span>ضريبة القيمة المضافة ({invoice.taxRate}%):</span>
+            <span>{(invoice.taxAmount || 0).toLocaleString()} ج.م</span>
+          </div>
+          <div className="flex justify-between text-base font-bold text-slate-900 border-t pt-2">
+            <span>الإجمالي المستحق:</span>
+            <span className="text-emerald-600">{invoice.total.toLocaleString()} ج.م</span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+          <button 
+            onClick={() => window.print()}
+            className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-800 transition"
+          >
+            <Printer className="w-4 h-4" /> طباعة الفاتورة
+          </button>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-800 text-sm font-medium">إغلاق</button>
+        </div>
+      </div>
+    </div>
+  );
+}
